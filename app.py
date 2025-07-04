@@ -187,6 +187,12 @@ def input_with_emoji():
             st.experimental_rerun() if hasattr(st, 'experimental_rerun') else st.rerun()
     return st.session_state.get('chat_input', user_input)
 
+# Reset chat_input jika baru submit
+if st.session_state.get('reset_chat_input', False):
+    st.session_state['chat_input'] = ''
+    st.session_state['emoji_selected'] = ''
+    st.session_state['reset_chat_input'] = False
+
 # Input pesan + emoji + upload file
 user_input = input_with_emoji()
 with st.form(key="chat_form", clear_on_submit=True):
@@ -208,8 +214,7 @@ if submit and user_input.strip():
     }
     messages.append(new_msg)
     save_messages(messages)
-    st.session_state['chat_input'] = ''
-    st.session_state['emoji_selected'] = ''
+    st.session_state['reset_chat_input'] = True
     st.rerun()
 
 st.markdown("""

@@ -181,7 +181,7 @@ def input_with_emoji():
             st.session_state['show_emoji'] = not st.session_state.get('show_emoji', False)
     if st.session_state.get('show_emoji', False):
         emoji = emoji_picker()
-        if emoji:
+        if emoji is not None and emoji != '':
             st.session_state['chat_input'] = st.session_state.get('chat_input', '') + emoji
             st.session_state['show_emoji'] = False
             st.experimental_rerun() if hasattr(st, 'experimental_rerun') else st.rerun()

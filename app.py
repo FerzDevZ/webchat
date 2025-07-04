@@ -170,13 +170,14 @@ if uploaded_file is not None:
     file_name = uploaded_file.name
     file_type = uploaded_file.type
 
-# Input pesan + emoji picker
+# Input pesan + emoji picker (di luar form)
 def input_with_emoji():
+    user_input = st.session_state.get('chat_input', '')
     col1, col2 = st.columns([4,1])
     with col1:
-        user_input = st.text_input("Ketik pesan Anda", key="chat_input")
+        user_input = st.text_input("Ketik pesan Anda", value=user_input, key="chat_input")
     with col2:
-        if st.button("😀 Emoji"):
+        if st.button("😀 Emoji", key="emoji_btn"):
             st.session_state['show_emoji'] = not st.session_state.get('show_emoji', False)
     if st.session_state.get('show_emoji', False):
         emoji = emoji_picker()
@@ -186,28 +187,23 @@ def input_with_emoji():
             st.experimental_rerun() if hasattr(st, 'experimental_rerun') else st.rerun()
     return st.session_state.get('chat_input', user_input)
 
-# Notifikasi pesan baru (dummy, hanya contoh, perlu JS untuk deteksi scroll sebenarnya)
-# st.info('Pesan baru akan muncul otomatis setiap 2 detik.')
-
 # Input pesan + emoji + upload file
-def get_message_content():
-    msg = input_with_emoji()
-    if file_data:
-        if file_type and file_type.startswith('image/'):
-            return f"{msg}\n![{file_name}](data:{file_type};base64,{file_data})"
-        else:
-            return f"{msg}\n[File: {file_name} diupload]"
-    return msg
-
+user_input = input_with_emoji()
 with st.form(key="chat_form", clear_on_submit=True):
-    user_input = get_message_content()
+    st.text_input("", value=user_input, key="chat_input_form", label_visibility="collapsed", disabled=True)
     submit = st.form_submit_button("Kirim")
 
 if submit and user_input.strip():
     messages = load_messages()
+    msg = user_input
+    if file_data:
+        if file_type and file_type.startswith('image/'):
+            msg = f"{msg}\n![{file_name}](data:{file_type};base64,{file_data})"
+        else:
+            msg = f"{msg}\n[File: {file_name} diupload]"
     new_msg = {
         "user": st.session_state["username"],
-        "content": user_input,
+        "content": msg,
         "time": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     }
     messages.append(new_msg)

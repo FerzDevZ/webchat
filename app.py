@@ -1,15 +1,16 @@
 import streamlit as st
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 import hashlib
 import time
+import base64
 
 st.set_page_config(page_title="Web Chat Multi-User", page_icon="💬", layout="centered")
 st.title("💬 Web Chat Multi-User")
 
 CHAT_FILE = "chat_history.json"
-REFRESH_INTERVAL = 5  # detik
+REFRESH_INTERVAL = 2  # detik
 
 # Fungsi untuk load dan save chat
 
@@ -26,17 +27,70 @@ def save_messages(messages):
     with open(CHAT_FILE, "w") as f:
         json.dump(messages, f)
 
-# Fungsi avatar (emoji berdasarkan hash username)
+# Avatar custom (pilih emoji/avatar dari list)
+def avatar_picker():
+    emojis = ['😀','😃','😄','😁','😆','😅','😂','🙂','🙃','😉','😊','😇','🥰','😍','🤩','😘','😗','😚','😙','😋','😜','🤪','🤨','🧐','🤓','😎','🥳','😏','😒','😞','😔','😟','😕','🙁','☹️','😣','😖','😫','😩','🥺','😢','😭','😤','😠','😡','🤬','🤯','😳','🥵','🥶','😱','😨','😰','😥','😓','🤗','🤔','🤭','🤫','🤥','😶','😐','😑','😬','🙄','😯','😦','😧','😮','😲','🥱','😴','🤤','😪','😵','🤐','🥴','🤢','🤮','🤧','😷','🤒','🤕','🤑','🤠','😈','👿','👹','👺','🤡','💩','👻','💀','☠️','👽','👾','🤖','🎃']
+    st.write("Pilih avatar emoji:")
+    cols = st.columns(8)
+    for i, emoji in enumerate(emojis):
+        if cols[i % 8].button(emoji, key=f'avatar_{i}'):
+            st.session_state['custom_avatar'] = emoji
+            st.session_state['avatar_set'] = True
+            st.rerun()
+
+# Fungsi avatar (emoji berdasarkan custom user)
 def get_avatar(username):
+    if username == st.session_state.get("username") and st.session_state.get('avatar_set', False):
+        return st.session_state['custom_avatar']
+    # fallback: hash
     emojis = ['😀','😃','😄','😁','😆','😅','😂','🙂','🙃','😉','😊','😇','🥰','😍','🤩','😘','😗','😚','😙','😋','😜','🤪','🤨','🧐','🤓','😎','🥳','😏','😒','😞','😔','😟','😕','🙁','☹️','😣','😖','😫','😩','🥺','😢','😭','😤','😠','😡','🤬','🤯','😳','🥵','🥶','😱','😨','😰','😥','😓','🤗','🤔','🤭','🤫','🤥','😶','😐','😑','😬','🙄','😯','😦','😧','😮','😲','🥱','😴','🤤','😪','😵','🤐','🥴','🤢','🤮','🤧','😷','🤒','🤕','🤑','🤠','😈','👿','👹','👺','🤡','💩','👻','💀','☠️','👽','👾','🤖','🎃']
     idx = int(hashlib.sha256(username.encode()).hexdigest(), 16) % len(emojis)
     return emojis[idx]
 
 # Fungsi warna bubble berdasarkan username
 def get_bubble_color(username):
-    colors = ["#DCF8C6", "#F1F0F0", "#E6E6FA", "#FFFACD", "#FFDAB9", "#E0FFFF", "#FFB6C1", "#D1FFD6", "#FFDEAD", "#C6E2FF"]
-    idx = int(hashlib.sha256(username.encode()).hexdigest(), 16) % len(colors)
-    return colors[idx]
+    gradients = [
+        "linear-gradient(135deg, #DCF8C6 0%, #b2f7cc 100%)",
+        "linear-gradient(135deg, #F1F0F0 0%, #e0e0e0 100%)",
+        "linear-gradient(135deg, #E6E6FA 0%, #b8b8ff 100%)",
+        "linear-gradient(135deg, #FFFACD 0%, #ffe29a 100%)",
+        "linear-gradient(135deg, #FFDAB9 0%, #ffcba4 100%)",
+        "linear-gradient(135deg, #E0FFFF 0%, #b2f7f7 100%)",
+        "linear-gradient(135deg, #FFB6C1 0%, #ff8fab 100%)",
+        "linear-gradient(135deg, #D1FFD6 0%, #a3ffb0 100%)",
+        "linear-gradient(135deg, #FFDEAD 0%, #ffd180 100%)",
+        "linear-gradient(135deg, #C6E2FF 0%, #a0c4ff 100%)"
+    ]
+    idx = int(hashlib.sha256(username.encode()).hexdigest(), 16) % len(gradients)
+    return gradients[idx]
+
+# Fungsi waktu informatif
+def format_time(ts):
+    now = datetime.now()
+    try:
+        t = datetime.strptime(ts, '%Y-%m-%d %H:%M:%S')
+    except:
+        return ts
+    if t.date() == now.date():
+        return f"Hari ini, {t.strftime('%H:%M')}"
+    elif t.date() == (now - timedelta(days=1)).date():
+        return f"Kemarin, {t.strftime('%H:%M')}"
+    else:
+        return t.strftime('%d %b %Y, %H:%M')
+
+# Sidebar: Avatar custom
+with st.sidebar:
+    st.header("Pengaturan")
+    if st.button("Logout/Ganti Username"):
+        st.session_state["username"] = ""
+        st.session_state['avatar_set'] = False
+        st.rerun()
+    dark_mode = st.checkbox("Dark Mode", value=False)
+    if not st.session_state.get('avatar_set', False):
+        avatar_picker()
+        st.stop()
+    else:
+        st.write(f"Avatar Anda: {st.session_state['custom_avatar']}")
 
 # Login user
 if "username" not in st.session_state:
@@ -61,6 +115,15 @@ else:
 # Load chat
 messages = load_messages()
 
+# Notifikasi pesan baru (highlight badge jika ada pesan baru dan user tidak scroll ke bawah)
+# Catatan: Streamlit tidak bisa deteksi posisi scroll browser secara native,
+# jadi notifikasi hanya muncul jika jumlah pesan bertambah saat auto-refresh.
+if 'last_message_count' not in st.session_state:
+    st.session_state['last_message_count'] = len(messages)
+if len(messages) > st.session_state['last_message_count']:
+    st.sidebar.markdown('<span style="color:orange;font-weight:bold;">🔔 Ada pesan baru!</span>', unsafe_allow_html=True)
+    st.session_state['last_message_count'] = len(messages)
+
 # Tampilkan riwayat chat
 def render_chat():
     for msg in messages:
@@ -69,18 +132,79 @@ def render_chat():
         margin = "4px 0 4px 40px" if align == 'right' else "4px 40px 4px 0"
         sender = "Anda" if align == 'right' else msg["user"]
         avatar = get_avatar(msg["user"])
-        st.markdown(f"<div style='display:flex; flex-direction:{'row-reverse' if align=='right' else 'row'}; align-items:flex-end; margin-bottom:2px;'><div style='font-size:28px; margin:0 8px;'>{avatar}</div><div style='text-align:{align}; background:{bg}; padding:10px 16px; border-radius:16px; margin:{margin}; min-width:80px; max-width:70%; box-shadow:0 1px 2px #ccc;'><b style='font-size:13px;'>{sender}</b><br><span style='font-size:15px;'>{msg['content']}</span><br><span style='font-size:10px;color:gray'>{msg['time']}</span></div></div>", unsafe_allow_html=True)
+        time_str = format_time(msg["time"])
+        st.markdown(f"<div style='display:flex; flex-direction:{'row-reverse' if align=='right' else 'row'}; align-items:flex-end; margin-bottom:2px;'><div style='font-size:28px; margin:0 8px;'>{avatar}</div><div style='text-align:{align}; background:{bg}; padding:12px 18px; border-radius:22px; margin:{margin}; min-width:80px; max-width:70%; box-shadow:0 2px 8px #bbb; font-family:sans-serif;'><b style='font-size:13px;'>{sender}</b><br><span style='font-size:15px;'>{msg['content']}</span><br><span style='font-size:11px;color:gray'>{time_str}</span></div></div>", unsafe_allow_html=True)
+
+# Dark mode CSS
+if dark_mode:
+    st.markdown("""
+        <style>
+        body, .stApp { background: #222 !important; color: #eee !important; }
+        .stTextInput>div>div>input { background: #333 !important; color: #eee !important; }
+        .stButton>button { background: #444 !important; color: #eee !important; }
+        </style>
+    """, unsafe_allow_html=True)
 
 chat_placeholder = st.container()
 with chat_placeholder:
     render_chat()
 
-# Input pesan
+# Emoji picker (simple)
+def emoji_picker():
+    emojis = ['😀','😂','😍','😎','😢','😡','👍','🙏','🎉','🔥','💯','🥰','😱','😅','😆','😋','😜','🤩','😇','😏','😒','😞','😔','😕','🙁','😣','😖','😫','😩','🥺','😭','😤','😠','😡','🤬','🤯','😳','🥵','🥶','😱','😨','😰','😥','😓','🤗','🤔','🤭','🤫','🤥','😶','😐','😑','😬','🙄','😯','😦','😧','😮','😲','🥱','😴','🤤','😪','😵','🤐','🥴','🤢','🤮','🤧','😷','🤒','🤕','🤑','🤠','😈','👿','👹','👺','🤡','💩','👻','💀','☠️','👽','👾','🤖','🎃']
+    cols = st.columns(8)
+    selected = st.session_state.get('emoji_selected', '')
+    for i, emoji in enumerate(emojis):
+        if cols[i % 8].button(emoji, key=f'emoji_{i}'):
+            selected = emoji
+    st.session_state['emoji_selected'] = selected
+    return selected
+
+# Upload gambar/file
+uploaded_file = st.file_uploader("Upload gambar/file (opsional)", type=["png", "jpg", "jpeg", "gif", "pdf", "txt"], key="fileuploader")
+file_data = None
+file_name = None
+file_type = None
+if uploaded_file is not None:
+    file_data = base64.b64encode(uploaded_file.read()).decode('utf-8')
+    file_name = uploaded_file.name
+    file_type = uploaded_file.type
+
+# Input pesan + emoji picker
+def input_with_emoji():
+    col1, col2 = st.columns([4,1])
+    with col1:
+        user_input = st.text_input("Ketik pesan Anda", key="chat_input")
+    with col2:
+        if st.button("😀 Emoji"):
+            st.session_state['show_emoji'] = not st.session_state.get('show_emoji', False)
+    if st.session_state.get('show_emoji', False):
+        emoji = emoji_picker()
+        if emoji:
+            st.session_state['chat_input'] = st.session_state.get('chat_input', '') + emoji
+            st.session_state['show_emoji'] = False
+            st.experimental_rerun() if hasattr(st, 'experimental_rerun') else st.rerun()
+    return st.session_state.get('chat_input', user_input)
+
+# Notifikasi pesan baru (dummy, hanya contoh, perlu JS untuk deteksi scroll sebenarnya)
+# st.info('Pesan baru akan muncul otomatis setiap 2 detik.')
+
+# Input pesan + emoji + upload file
+def get_message_content():
+    msg = input_with_emoji()
+    if file_data:
+        if file_type and file_type.startswith('image/'):
+            return f"{msg}\n![{file_name}](data:{file_type};base64,{file_data})"
+        else:
+            return f"{msg}\n[File: {file_name} diupload]"
+    return msg
+
 with st.form(key="chat_form", clear_on_submit=True):
-    user_input = st.text_input("Ketik pesan Anda", "")
+    user_input = get_message_content()
     submit = st.form_submit_button("Kirim")
 
 if submit and user_input.strip():
+    messages = load_messages()
     new_msg = {
         "user": st.session_state["username"],
         "content": user_input,
@@ -88,6 +212,8 @@ if submit and user_input.strip():
     }
     messages.append(new_msg)
     save_messages(messages)
+    st.session_state['chat_input'] = ''
+    st.session_state['emoji_selected'] = ''
     st.rerun()
 
 st.markdown("""

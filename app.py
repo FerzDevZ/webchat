@@ -149,72 +149,21 @@ chat_placeholder = st.container()
 with chat_placeholder:
     render_chat()
 
-# Emoji picker (simple)
-def emoji_picker():
-    emojis = ['😀','😂','😍','😎','😢','😡','👍','🙏','🎉','🔥','💯','🥰','😱','😅','😆','😋','😜','🤩','😇','😏','😒','😞','😔','😕','🙁','😣','😖','😫','😩','🥺','😭','😤','😠','😡','🤬','🤯','😳','🥵','🥶','😱','😨','😰','😥','😓','🤗','🤔','🤭','🤫','🤥','😶','😐','😑','😬','🙄','😯','😦','😧','😮','😲','🥱','😴','🤤','😪','😵','🤐','🥴','🤢','🤮','🤧','😷','🤒','🤕','🤑','🤠','😈','👿','👹','👺','🤡','💩','👻','💀','☠️','👽','👾','🤖','🎃']
-    cols = st.columns(8)
-    selected = st.session_state.get('emoji_selected', '')
-    for i, emoji in enumerate(emojis):
-        if cols[i % 8].button(emoji, key=f'emoji_{i}'):
-            selected = emoji
-    st.session_state['emoji_selected'] = selected
-    return selected
-
-# Upload gambar/file
-uploaded_file = st.file_uploader("Upload gambar/file (opsional)", type=["png", "jpg", "jpeg", "gif", "pdf", "txt"], key="fileuploader")
-file_data = None
-file_name = None
-file_type = None
-if uploaded_file is not None:
-    file_data = base64.b64encode(uploaded_file.read()).decode('utf-8')
-    file_name = uploaded_file.name
-    file_type = uploaded_file.type
-
-# Input pesan + emoji picker (di luar form)
-def input_with_emoji():
-    user_input = st.session_state.get('chat_input', '')
-    col1, col2 = st.columns([4,1])
-    with col1:
-        user_input = st.text_input("Ketik pesan Anda", value=user_input, key="chat_input")
-    with col2:
-        if st.button("😀 Emoji", key="emoji_btn"):
-            st.session_state['show_emoji'] = not st.session_state.get('show_emoji', False)
-    if st.session_state.get('show_emoji', False):
-        emoji = emoji_picker()
-        if emoji is not None and emoji != '':
-            st.session_state['chat_input'] = st.session_state.get('chat_input', '') + emoji
-            st.session_state['show_emoji'] = False
-            st.experimental_rerun() if hasattr(st, 'experimental_rerun') else st.rerun()
-    return st.session_state.get('chat_input', user_input)
-
-# Reset chat_input jika baru submit
-if st.session_state.get('reset_chat_input', False):
-    st.session_state['chat_input'] = ''
-    st.session_state['emoji_selected'] = ''
-    st.session_state['reset_chat_input'] = False
-
-# Input pesan + emoji + upload file
-user_input = input_with_emoji()
+# Hapus fitur emoji picker dan upload file, gunakan input pesan sederhana
+user_input = st.text_input("Ketik pesan Anda", key="chat_input_simple")
 with st.form(key="chat_form", clear_on_submit=True):
-    st.text_input("", value=user_input, key="chat_input_form", label_visibility="collapsed", disabled=True)
     submit = st.form_submit_button("Kirim")
 
 if submit and user_input.strip():
     messages = load_messages()
-    msg = user_input
-    if file_data:
-        if file_type and file_type.startswith('image/'):
-            msg = f"{msg}\n![{file_name}](data:{file_type};base64,{file_data})"
-        else:
-            msg = f"{msg}\n[File: {file_name} diupload]"
     new_msg = {
         "user": st.session_state["username"],
-        "content": msg,
+        "content": user_input,
         "time": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     }
     messages.append(new_msg)
     save_messages(messages)
-    st.session_state['reset_chat_input'] = True
+    st.session_state['chat_input_simple'] = ''
     st.rerun()
 
 st.markdown("""
